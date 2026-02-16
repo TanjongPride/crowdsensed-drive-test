@@ -14,6 +14,8 @@ import kotlinx.coroutines.withContext
 import com.example.crowdsenseddt.model.SignalPoint
 import com.example.crowdsenseddt.model.toUiModel
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.runtime.collectAsState
+import com.example.crowdsenseddt.ui.SignalHeatmapOSM
 
 
 
@@ -24,6 +26,7 @@ fun DashboardScreen(
     viewModel: DashboardViewModel = viewModel()
 ) {
     val networkData = viewModel.networkData
+    val signalPoints by viewModel.livePoints.collectAsState()
 
     val rsrp = networkData?.rsrp?.let { "$it dBm" } ?: "-"
     val rsrq = networkData?.rsrq?.let { "$it dB" } ?: "-"
@@ -34,12 +37,7 @@ fun DashboardScreen(
     // ----------------------------
     // State
     // ----------------------------
-    var signalPoints by remember {
-        mutableStateOf<List<SignalPoint>>(emptyList())
-    }
 
-    var isLoading by remember { mutableStateOf(true) }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
 
     var selectedParameter by remember {
         mutableStateOf(SignalParameter.RSRP)
@@ -48,20 +46,7 @@ fun DashboardScreen(
     // ----------------------------
     // Fetch backend data
     // ----------------------------
-    LaunchedEffect(Unit) {
-        try {
-            val response = withContext(Dispatchers.IO) {
-                ApiClient.api.getHeatmapData()
-            }
 
-            signalPoints = response.mapNotNull { it.toUiModel() }
-            isLoading = false
-
-        } catch (e: Exception) {
-            errorMessage = e.localizedMessage ?: e.message ?: "Unknown error"
-            isLoading = false
-        }
-    }
 
     // ----------------------------
     // UI
@@ -123,26 +108,13 @@ fun DashboardScreen(
         // ----------------------------
         // Map + Heatmap (LIVE DATA)
         // ----------------------------
-        when {
-            isLoading -> {
-                CircularProgressIndicator()
-                Text("Loading signal data…")
-            }
-
-            errorMessage != null -> {
-                Text("Error loading data: $errorMessage", color = Color.Red)
-            }
-
-            else -> {
-                SignalHeatmapOSM(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(240.dp),
-                    signalPoints = signalPoints,
-                    parameter = selectedParameter
-                )
-            }
-        }
+        SignalHeatmapOSM(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(240.dp),
+            signalPoints = signalPoints,
+            parameter = selectedParameter
+        )
 
         Spacer(modifier = Modifier.height(8.dp))
 
